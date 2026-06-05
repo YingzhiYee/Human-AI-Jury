@@ -1,4 +1,6 @@
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 *.pyo
@@ -9,3 +11,8 @@ build/
 .venv/
 venv/
 node_modules/
+.next/
+.turbo/
+artifacts/
+cache/
+out/
