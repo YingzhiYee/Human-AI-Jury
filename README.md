@@ -17,17 +17,29 @@ Human-AI Jury introduces a transparent alternative.
 
 ## Architecture
 Case
+
 ↓
+
 Evidence Agents
+
 ↓
+
 Prosecution & Defense
+
 ↓
+
 Human Jury
+
 ↓
+
 Judge Agent
+
 ↓
+
 Resolution
+
 ↓
+
 Ethereum
 
 ## Features
