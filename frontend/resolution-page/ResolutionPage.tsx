@@ -27,6 +27,10 @@ export function ResolutionPage() {
             <h2>{resolution.verdict}</h2>
             <p>{resolution.summary}</p>
           </div>
+          <div className="mode-banner">
+            <strong>Mode:</strong> {result.mode}
+            {result.notices[0] ? <span>{result.notices[0]}</span> : null}
+          </div>
           <div className="verdict-grid">
             <div>
               <span>YES probability</span>

@@ -132,6 +132,8 @@ export interface StoragePayload {
 }
 
 export interface DemoRunResponse {
+  mode: "live" | "simulated" | "simulated-local";
+  notices: string[];
   case: DemoRunRequest;
   evidence_pool: EvidencePool;
   deliberation: Deliberation;

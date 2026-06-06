@@ -27,6 +27,7 @@ from .schema import (
 )
 from .evidence_scoring import finalize_items
 from .agents import news_agent, social_agent, official_agent, counter_agent
+from .simulated_pool import build_simulated_pool
 
 
 # ────────────────────────────────────────────
@@ -140,6 +141,8 @@ def run_investigation(request: InvestigationRequest) -> EvidencePool:
     pool  = final.get("pool")
     if pool is None:
         raise RuntimeError("Investigation pipeline returned no EvidencePool")
+    if not pool.items:
+        return build_simulated_pool(request)
     return pool
 
 

@@ -125,6 +125,11 @@ export function DebatePage() {
             </p>
           </div>
 
+          <div className="mode-banner">
+            <strong>Mode:</strong> {result.mode}
+            {result.notices[0] ? <span>{result.notices[0]}</span> : null}
+          </div>
+
           <div className="form-grid">
             <label>
               <span>Juror stance</span>

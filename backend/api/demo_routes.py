@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from backend.api.deliberation import run_deliberation
-from backend.investigation.pipeline import run_investigation
+from backend.investigation.simulated_pool import build_simulated_pool, is_simulated_pool
 from backend.investigation.schema import EvidenceDirection, EvidencePool, InvestigationRequest
 from backend.models import CaseFile, Challenge, Evidence, HumanVote
 
@@ -123,6 +123,7 @@ def get_default_case() -> dict[str, Any]:
 
 @router.post("/run")
 def run_demo(request: DemoRunRequest) -> dict[str, Any]:
+    notices: list[str] = []
     try:
         investigation_request = InvestigationRequest(
             market_id=request.market_id,
@@ -130,11 +131,23 @@ def run_demo(request: DemoRunRequest) -> dict[str, Any]:
             context=request.context,
             max_items_per_agent=request.max_items_per_agent,
         )
-        evidence_pool = run_investigation(investigation_request)
+        try:
+            from backend.investigation.pipeline import run_investigation
+
+            evidence_pool = run_investigation(investigation_request)
+        except Exception as exc:
+            notices.append(f"Live investigation unavailable, using simulated evidence: {exc}")
+            evidence_pool = build_simulated_pool(investigation_request)
+
         case_file = _build_case_file(request, evidence_pool)
         deliberation = run_deliberation(case_file).to_dict()
+        mode = "simulated" if is_simulated_pool(evidence_pool) else "live"
+        if mode == "simulated" and not notices:
+            notices.append("Simulated evidence mode is active because live external data was unavailable.")
 
         return {
+            "mode": mode,
+            "notices": notices,
             "case": request.model_dump(),
             "evidence_pool": evidence_pool.model_dump(),
             "deliberation": deliberation,

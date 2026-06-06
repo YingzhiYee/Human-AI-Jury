@@ -4,9 +4,8 @@ FastAPI 路由 — Investigation Layer 对外 HTTP 接口
 上游（Frontend / Deliberation Engine）调用此接口触发调查，获取 EvidencePool。
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from ..investigation.schema import InvestigationRequest, InvestigationResponse
-from ..investigation.pipeline import run_investigation
 
 router = APIRouter(prefix="/api/investigation", tags=["Investigation"])
 
@@ -40,6 +39,8 @@ def start_investigation(req: InvestigationRequest) -> InvestigationResponse:
     }
     """
     try:
+        from ..investigation.pipeline import run_investigation
+
         pool = run_investigation(req)
         return InvestigationResponse(success=True, market_id=req.market_id, evidence_pool=pool)
     except Exception as e:

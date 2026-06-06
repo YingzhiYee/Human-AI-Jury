@@ -139,7 +139,13 @@ export function CasePage() {
         </div>
 
         {result ? (
-          <EvidenceBoard evidencePool={result.evidence_pool} compact />
+          <>
+            <div className="mode-banner">
+              <strong>Mode:</strong> {result.mode}
+              {result.notices[0] ? <span>{result.notices[0]}</span> : null}
+            </div>
+            <EvidenceBoard evidencePool={result.evidence_pool} compact />
+          </>
         ) : (
           <div className="placeholder">
             Run the case once and the live evidence pool summary will appear here.

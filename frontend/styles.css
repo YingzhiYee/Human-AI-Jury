@@ -387,6 +387,19 @@ textarea {
   color: #a1272d;
 }
 
+.mode-banner {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(155, 67, 35, 0.16);
+  background: rgba(255, 246, 237, 0.78);
+  color: var(--muted);
+}
+
 @media (max-width: 920px) {
   .hero,
   .split-layout,
