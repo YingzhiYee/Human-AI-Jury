@@ -214,3 +214,36 @@ curl -s https://human-ai-jury-api.onrender.com/api/jury/run \
 - Render gives you a real public API URL.
 - FastAPI `/docs` makes the system demoable for judges and external developers without extra frontend setup.
 - `/api/system/readiness` shows provider status, which strengthens the transparency story.
+
+## GitHub Pages Frontend
+
+If you want the simplest public demo setup, use:
+
+- Frontend: GitHub Pages
+- Backend API: Render
+
+This repo already includes a Pages workflow in [.github/workflows/deploy-pages.yml](/Users/yyz/code/Human-AI-Jury/.github/workflows/deploy-pages.yml).
+
+### What It Does
+
+- builds `frontend/`
+- publishes the static app to GitHub Pages
+- points frontend API requests to:
+  - `https://human-ai-jury-api.onrender.com`
+
+### One-Time Setup
+
+1. Open GitHub repository `Settings > Pages`
+2. Under `Build and deployment`, set `Source` to `GitHub Actions`
+3. Push to `main`
+4. Wait for the `Deploy Frontend to GitHub Pages` workflow to finish
+
+The expected project site URL is:
+
+- `https://yingzhiyee.github.io/Human-AI-Jury/`
+
+### Notes
+
+- The frontend now uses hash routing, so GitHub Pages refreshes will not break sub-pages.
+- Static assets are built with base path `/Human-AI-Jury/`, which matches project-site deployment on GitHub Pages.
+- If your backend URL changes, update `VITE_API_BASE_URL` in the workflow file.
