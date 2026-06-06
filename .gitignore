@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+.agents/
 __pycache__/
 *.pyc
 *.pyo
@@ -18,3 +19,5 @@ artifacts/
 cache/
 out/
 *.tsbuildinfo
+skills-lock.json
+*.docx
