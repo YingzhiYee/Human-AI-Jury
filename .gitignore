@@ -9,6 +9,7 @@ __pycache__/
 dist/
 build/
 .venv/
+.venv312/
 venv/
 node_modules/
 .next/

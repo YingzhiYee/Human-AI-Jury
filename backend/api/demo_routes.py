@@ -144,6 +144,10 @@ def run_demo(request: DemoRunRequest) -> dict[str, Any]:
         mode = "simulated" if is_simulated_pool(evidence_pool) else "live"
         if mode == "simulated" and not notices:
             notices.append("Simulated evidence mode is active because live external data was unavailable.")
+        if mode == "live" and not any(item.source_type == "social" for item in evidence_pool.items):
+            notices.append(
+                "No social/X evidence was included in this live run. xAPI may have returned no matches, or the social provider may be unavailable or limited."
+            )
 
         return {
             "mode": mode,

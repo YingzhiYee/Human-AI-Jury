@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.demo_routes import router as demo_router
 from .api.investigation_routes import router as investigation_router
+from .api.jury_routes import router as jury_router
+from .api.system_routes import router as system_router
 
 app = FastAPI(title="Human-AI Jury API", version="0.2.0")
 
@@ -16,6 +18,8 @@ app.add_middleware(
 
 app.include_router(investigation_router)
 app.include_router(demo_router)
+app.include_router(jury_router)
+app.include_router(system_router)
 
 
 @app.get("/")
@@ -24,4 +28,5 @@ def root():
         "project": "Human-AI Jury",
         "hackathon": "ETH Beijing 2026",
         "layers": ["investigation", "deliberation", "frontend", "chain"],
+        "primary_run_endpoint": "/api/jury/run",
     }

@@ -1,5 +1,5 @@
 import type { DemoRunRequest, DemoRunResponse } from "./types";
-import { buildMockRunResponse, defaultDemoCase } from "./mockData";
+import { defaultDemoCase } from "./mockData";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
 
@@ -21,12 +21,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function fetchDefaultCase() {
-  return request<DemoRunRequest>("/api/demo/default-case").catch(() => defaultDemoCase);
+  return request<DemoRunRequest>("/api/jury/default-case").catch(() => defaultDemoCase);
 }
 
 export function runDemo(payload: DemoRunRequest) {
-  return request<DemoRunResponse>("/api/demo/run", {
+  return request<DemoRunResponse>("/api/jury/run", {
     method: "POST",
     body: JSON.stringify(payload),
-  }).catch(() => buildMockRunResponse(payload));
+  });
 }
