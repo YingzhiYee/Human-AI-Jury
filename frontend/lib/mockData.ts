@@ -1,0 +1,212 @@
+import type { DemoRunRequest, DemoRunResponse } from "./types";
+
+export const defaultDemoCase: DemoRunRequest = {
+  market_id: "pm_demo_001",
+  claim: "Did Trump pardon Hunter Biden before January 20?",
+  context: "Resolve YES only if credible official or documentary evidence of a pardon exists before Jan 20.",
+  prior_yes: 0.5,
+  max_items_per_agent: 4,
+  human_votes: [],
+  challenges: [],
+};
+
+export function buildMockRunResponse(payload: DemoRunRequest): DemoRunResponse {
+  const evidencePool = {
+    market_id: payload.market_id,
+    claim: payload.claim,
+    items: [
+      {
+        id: "official_1",
+        source_type: "official",
+        source_name: "whitehouse.gov",
+        url: "https://www.whitehouse.gov/",
+        title: "No official pardon release found",
+        summary: "Review of official release archives did not reveal a formal pardon entry for Hunter Biden.",
+        raw_snippet: "No formal pardon entry found in the reviewed archive.",
+        direction: "supports_no" as const,
+        confidence: 0.94,
+        relevance: 0.95,
+        weight: 0.89,
+        published_at: null,
+        agent: "Official Agent",
+      },
+      {
+        id: "news_1",
+        source_type: "news",
+        source_name: "Reuters",
+        url: "https://www.reuters.com/",
+        title: "Major media finds no documented pardon",
+        summary: "Mainstream reporting found no documentary evidence of a signed pardon before the deadline.",
+        raw_snippet: "No documentary evidence surfaced before the market deadline.",
+        direction: "supports_no" as const,
+        confidence: 0.84,
+        relevance: 0.88,
+        weight: 0.74,
+        published_at: null,
+        agent: "News Agent",
+      },
+      {
+        id: "social_1",
+        source_type: "social",
+        source_name: "X post",
+        url: "https://x.com/",
+        title: "Social rumor claims a private pardon",
+        summary: "A viral post claims a private pardon exists, but it does not include primary evidence.",
+        raw_snippet: "Rumor claims private signing without attached documents.",
+        direction: "supports_yes" as const,
+        confidence: 0.3,
+        relevance: 0.66,
+        weight: 0.2,
+        published_at: null,
+        agent: "Social Agent",
+      },
+      {
+        id: "counter_1",
+        source_type: "counter",
+        source_name: "Legal analysis",
+        url: "https://example.com/legal-analysis",
+        title: "Missing paper trail weakens YES claim",
+        summary: "A legal commentator notes a valid pardon would normally produce a public or discoverable trail.",
+        raw_snippet: "A valid pardon usually leaves a documentary trail.",
+        direction: "supports_no" as const,
+        confidence: 0.72,
+        relevance: 0.79,
+        weight: 0.57,
+        published_at: null,
+        agent: "Counter Agent",
+      },
+    ],
+    yes_weight: 0.2,
+    no_weight: 2.2,
+    total_items: 4,
+  };
+
+  const resolution = {
+    case_id: payload.market_id,
+    question: payload.claim,
+    verdict: "NO" as const,
+    probability_yes: 0.08,
+    confidence_interval: 0.17,
+    final_confidence: 0.76,
+    summary: "NO with 8.0% YES probability and +/- 17.0% uncertainty.",
+    rationale:
+      "Judge Agent found that official and media evidence currently outweighs the unverified social rumor, so the jury leans NO.",
+    decisive_evidence_ids: ["official_1", "news_1", "counter_1"],
+    audit_trail: [
+      "Evidence YES strength: 0.2",
+      "Evidence NO strength: 2.2",
+      "Human YES strength: 0.0",
+      "Human NO strength: 0.0",
+      "Challenge pressure: 0.0",
+      "Combined argument quality and evidence weighting currently favor NO.",
+    ],
+  };
+
+  const canonicalJson = JSON.stringify(
+    {
+      caseId: payload.market_id,
+      question: payload.claim,
+      verdict: resolution.verdict,
+      probabilityYes: resolution.probability_yes,
+      confidenceInterval: resolution.confidence_interval,
+      finalConfidence: resolution.final_confidence,
+      decisiveEvidenceIds: resolution.decisive_evidence_ids,
+      auditTrail: resolution.audit_trail,
+    },
+    null,
+    0,
+  );
+
+  return {
+    case: payload,
+    evidence_pool: evidencePool,
+    deliberation: {
+      case_id: payload.market_id,
+      prosecutor_argument: {
+        agent_name: "Prosecutor Agent",
+        stance: "yes",
+        confidence: 0.31,
+        summary: "YES side relies mostly on the rumor of a private pardon with limited documentary support.",
+        claims: [
+          {
+            statement: "Social rumor suggests a private pardon may exist.",
+            evidence_ids: ["social_1"],
+            strength: 0.2,
+          },
+        ],
+        counterpoints: [
+          "Official archive review did not surface a pardon entry.",
+          "Major media reporting found no documentary proof before the deadline.",
+        ],
+        cited_evidence_ids: ["social_1", "official_1", "news_1"],
+        weaknesses: ["YES side lacks primary documentation."],
+      },
+      defense_argument: {
+        agent_name: "Defense Agent",
+        stance: "no",
+        confidence: 0.92,
+        summary: "NO side is supported by official archive review, mainstream reporting, and legal analysis.",
+        claims: [
+          {
+            statement: "Official release archives show no documented pardon record.",
+            evidence_ids: ["official_1"],
+            strength: 0.89,
+          },
+          {
+            statement: "Mainstream reporting found no documentary evidence before the deadline.",
+            evidence_ids: ["news_1"],
+            strength: 0.74,
+          },
+        ],
+        counterpoints: ["The private-pardon rumor remains unverified."],
+        cited_evidence_ids: ["official_1", "news_1", "counter_1", "social_1"],
+        weaknesses: ["Absence of evidence is not absolute proof."],
+      },
+      bayesian_snapshot: {
+        prior_yes: payload.prior_yes,
+        posterior_yes: 0.08,
+        evidence_yes_strength: 0.2,
+        evidence_no_strength: 2.2,
+        human_yes_strength: 0,
+        human_no_strength: 0,
+        challenge_pressure: 0,
+        disagreement: 0.09,
+        confidence_interval: 0.17,
+      },
+      aggregation_report: {
+        prosecutor_score: 0.19,
+        defense_score: 0.93,
+        leading_stance: "no",
+        conflict_level: 0.14,
+        decisive_evidence_ids: ["official_1", "news_1", "counter_1"],
+        notes: [
+          "Prosecutor composite score: 0.19",
+          "Defense composite score: 0.93",
+          "Combined argument quality and evidence weighting currently favor NO.",
+        ],
+      },
+      judge_opinion: {
+        verdict: "NO",
+        winning_stance: "no",
+        probability_yes: 0.08,
+        final_confidence: 0.76,
+        rationale: resolution.rationale,
+        decisive_points: [
+          "Official archive review carries the highest weight.",
+          "Major media corroborates the absence of documentary proof.",
+          "YES side remains speculative without primary evidence.",
+        ],
+        cautions: ["If primary documentation appears later, the case should be reopened."],
+      },
+      resolution,
+    },
+    storage_payload: {
+      case_id: payload.market_id,
+      verdict: "NO",
+      confidence_bps: 7600,
+      metadata_uri: "",
+      canonical_json: canonicalJson,
+      contract_function: "storeResolution",
+    },
+  };
+}

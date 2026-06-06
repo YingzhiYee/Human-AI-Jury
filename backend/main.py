@@ -1,10 +1,11 @@
-"""Truth Oracle — FastAPI 入口"""
+"""Human-AI Jury — FastAPI entrypoint."""
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from .api.demo_routes import router as demo_router
 from .api.investigation_routes import router as investigation_router
 
-app = FastAPI(title="Truth Oracle API", version="0.1.0")
+app = FastAPI(title="Human-AI Jury API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,8 +15,13 @@ app.add_middleware(
 )
 
 app.include_router(investigation_router)
+app.include_router(demo_router)
 
 
 @app.get("/")
 def root():
-    return {"project": "Truth Oracle", "hackathon": "ETH Beijing 2026"}
+    return {
+        "project": "Human-AI Jury",
+        "hackathon": "ETH Beijing 2026",
+        "layers": ["investigation", "deliberation", "frontend", "chain"],
+    }
