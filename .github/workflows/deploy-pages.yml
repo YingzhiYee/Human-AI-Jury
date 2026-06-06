@@ -41,7 +41,7 @@ jobs:
         env:
           VITE_BASE_PATH: /Human-AI-Jury/
           VITE_API_BASE_URL: https://human-ai-jury-api.onrender.com
-          VITE_RESOLUTION_STORAGE_ADDRESS: 0x76Bcbb0b0E44fdd6626dd709C59d396d03eFF086
+          VITE_RESOLUTION_STORAGE_ADDRESS: "0x76Bcbb0b0E44fdd6626dd709C59d396d03eFF086"
         run: npm run build
 
       - name: Setup Pages
