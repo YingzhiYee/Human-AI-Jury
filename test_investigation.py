@@ -130,10 +130,28 @@ def test_compute_weight():
     assert abs(w - 0.72) < 0.001
     assert item.weight == w
 
+def test_direction_inference_threshold_claim():
+    from backend.investigation.direction_inference import refine_direction_label
+
+    bullish = refine_direction_label(
+        "Will Bitcoin trade above $150,000 before December 31, 2026?",
+        "Standard Chartered targets $170,000 and analysts say Bitcoin could rally higher.",
+        "neutral",
+    )
+    bearish = refine_direction_label(
+        "Will Bitcoin trade above $150,000 before December 31, 2026?",
+        "Charts warn of a cycle bottom in the $40,000s and a severe crash scenario.",
+        "neutral",
+    )
+
+    assert bullish == "supports_yes"
+    assert bearish == "supports_no"
+
 check("news confidence 打分正确", test_news_confidence)
 check("social confidence 打分正确（含官方账号）", test_social_confidence)
 check("official confidence 打分正确（.gov/.mil）", test_official_confidence)
 check("weight = confidence × relevance", test_compute_weight)
+check("direction inference 能识别数值阈值型支持/反对", test_direction_inference_threshold_claim)
 
 
 # ─────────────────────────────────────────────

@@ -7,6 +7,7 @@ import json
 import httpx
 
 from ...settings import build_openai_client, get_env, get_openai_model
+from ..direction_inference import refine_direction_label
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_news_confidence
 
@@ -87,6 +88,12 @@ def run(claim: str, max_items: int = 5) -> list[EvidenceItem]:
             summary       = description[:80] or title[:80]
             direction_str = "neutral"
             relevance     = 0.5
+
+        direction_str = refine_direction_label(
+            claim,
+            f"{title}. {description}",
+            direction_str,
+        )
 
         confidence = score_news_confidence(url)
 

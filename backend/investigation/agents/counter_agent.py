@@ -9,6 +9,7 @@ import json
 import httpx
 
 from ...settings import build_openai_client, get_env, get_openai_model
+from ..direction_inference import refine_direction_label
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_news_confidence
 
@@ -106,6 +107,12 @@ def run(claim: str, max_items: int = 5) -> list[EvidenceItem]:
             summary, direction_str, relevance = _llm_analyze(claim, title, snippet)
         except Exception:
             summary, direction_str, relevance = snippet[:80], "neutral", 0.5
+
+        direction_str = refine_direction_label(
+            claim,
+            f"{title}. {snippet}",
+            direction_str,
+        )
 
         items.append(EvidenceItem(
             id=f"counter_{i}_{uuid.uuid4().hex[:6]}",

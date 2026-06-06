@@ -12,6 +12,7 @@ import httpx
 
 from ...settings import build_openai_client, get_env, get_openai_model
 from ...xapi.client import XAPIClient
+from ..direction_inference import refine_direction_label
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_official_confidence, score_social_confidence
 
@@ -101,6 +102,12 @@ def run(claim: str, max_items: int = 5) -> list[EvidenceItem]:
         except Exception:
             summary, direction_str, relevance = desc[:80], "neutral", 0.5
 
+        direction_str = refine_direction_label(
+            claim,
+            f"{title}. {desc}",
+            direction_str,
+        )
+
         items.append(EvidenceItem(
             id=f"official_web_{i}_{uuid.uuid4().hex[:6]}",
             source_type=SourceType.OFFICIAL,
@@ -122,6 +129,8 @@ def run(claim: str, max_items: int = 5) -> list[EvidenceItem]:
             summary, direction_str, relevance = _llm_analyze(claim, t["text"])
         except Exception:
             summary, direction_str, relevance = t["text"][:80], "neutral", 0.6
+
+        direction_str = refine_direction_label(claim, t["text"], direction_str)
 
         confidence = score_social_confidence(
             t["author_username"], t["author_verified"],

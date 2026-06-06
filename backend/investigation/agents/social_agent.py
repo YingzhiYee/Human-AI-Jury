@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from ...settings import build_openai_client, get_openai_model
 from ...xapi.client import XAPIClient
+from ..direction_inference import refine_direction_label
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_social_confidence
 
@@ -218,6 +219,8 @@ def run(claim: str, max_items: int = 5) -> list[EvidenceItem]:
             summary = t["text"][:80]
             direction_str = "neutral"
             relevance = _heuristic_relevance(claim, t["text"])
+
+        direction_str = refine_direction_label(claim, t["text"], direction_str)
 
         if relevance < 0.25:
             continue
