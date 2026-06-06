@@ -5,18 +5,17 @@ xAPI 是本项目核心 hackathon 亮点：所有 Social 层数据均走 xapi.to
 """
 
 import json
-import os
 import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 
-from openai import OpenAI
-
+from ...settings import build_openai_client, get_openai_model
 from ...xapi.client import XAPIClient
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_social_confidence
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-placeholder"))
+openai_client = build_openai_client()
+OPENAI_MODEL = get_openai_model()
 
 _STOPWORDS = {
     "a", "an", "and", "are", "be", "before", "by", "did", "do", "does", "for",
@@ -164,7 +163,7 @@ Respond in JSON with exactly these fields:
 }}"""
 
     resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=OPENAI_MODEL,
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
         temperature=0,

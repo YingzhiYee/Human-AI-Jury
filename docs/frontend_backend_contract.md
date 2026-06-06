@@ -197,9 +197,18 @@ Required for true live investigation:
 
 ```env
 OPENAI_API_KEY=...
+OPENAI_BASE_URL=https://www.packyapi.com/v1
+OPENAI_MODEL=gpt-5.4-high
 BRAVE_API_KEY=...
 XAPI_TOKEN=...
 ```
+
+OpenAI-compatible provider note:
+
+- backend now supports OpenAI-compatible gateways, not only the official OpenAI API
+- if `OPENAI_BASE_URL` / `OPENAI_MODEL` are omitted, backend will fall back to `~/.codex/config.toml` when available
+- in the current local Codex config, the provider is `https://www.packyapi.com/v1`
+- for this provider, the verified chat-completions model is `gpt-5.4-high`
 
 Current official xAPI integration note:
 
@@ -420,11 +429,17 @@ Executable checks already run locally:
   - added claim-relative freshness filtering for `today` / `yesterday` / `this week`
   - added heuristic relevance fallback so social evidence still works when OpenAI classification is unavailable
 - OpenAI provider probe:
-  - verified current `OPENAI_API_KEY` fails authentication
-  - exact result: `401 invalid_api_key`
-  - readiness endpoint now reports this as `status=degraded` instead of falsely reporting ready
+  - inspected local Codex config and confirmed model provider is OpenAI-compatible custom gateway
+  - verified backend now reads `~/.codex/config.toml` fallback when `OPENAI_BASE_URL` / `OPENAI_MODEL` are absent
+  - verified the gateway base URL is `https://www.packyapi.com/v1`
+  - verified the listed default model `gpt-5.4` is not chat-completions compatible for this backend path
+  - verified `gpt-5.4-high` succeeds with backend chat completions
+  - readiness endpoint now reports:
+    - `status=ready`
+    - `provider_checks.openai.ok=true`
+    - `llm_runtime.base_url=https://www.packyapi.com/v1`
+    - `llm_runtime.model=gpt-5.4-high`
 
-Still blocked until missing live credentials are provided:
+Still blocked until remaining product work is provided:
 
-- restoring true LLM-based summarization/direction scoring with a valid OpenAI key
 - verifying Sepolia write path with deployed contract and wallet

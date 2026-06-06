@@ -4,17 +4,17 @@ Counter-Evidence Agent — 主动搜索与主流观点相反的证据
 策略：对 claim 取反后搜索，确保证据池的多元性，避免确认偏差
 """
 
-import os
 import uuid
 import json
 import httpx
-from openai import OpenAI
 
+from ...settings import build_openai_client, get_env, get_openai_model
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_news_confidence
 
-BRAVE_API_KEY = os.getenv("BRAVE_API_KEY", "")
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-placeholder"))
+BRAVE_API_KEY = get_env("BRAVE_API_KEY", "")
+openai_client = build_openai_client()
+OPENAI_MODEL = get_openai_model()
 
 
 def _generate_counter_query(claim: str) -> str:
@@ -24,7 +24,7 @@ Generate a search query (≤12 words) to find evidence that CONTRADICTS or DISPU
 Respond with ONLY the search query, no explanation."""
 
     resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=OPENAI_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
         max_tokens=30,
@@ -61,7 +61,7 @@ JSON:
   "relevance": <0.0-1.0>
 }}"""
     resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=OPENAI_MODEL,
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
         temperature=0,

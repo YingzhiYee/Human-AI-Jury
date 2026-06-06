@@ -6,18 +6,18 @@ Official Agent — 搜索官方声明（政府、机构、官方 X 账号）
 2. 用 xAPI 搜索白宫 / 司法部等官方账号推文
 """
 
-import os
 import uuid
 import json
 import httpx
-from openai import OpenAI
 
+from ...settings import build_openai_client, get_env, get_openai_model
 from ...xapi.client import XAPIClient
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_official_confidence, score_social_confidence
 
-BRAVE_API_KEY  = os.getenv("BRAVE_API_KEY", "")
-openai_client  = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-placeholder"))
+BRAVE_API_KEY  = get_env("BRAVE_API_KEY", "")
+openai_client  = build_openai_client()
+OPENAI_MODEL = get_openai_model()
 
 # 需要检索的官方 X 账号（用于 xAPI）
 OFFICIAL_ACCOUNTS = ["WhiteHouse", "POTUS", "RealDonaldTrump", "DOJ", "FBI"]
@@ -68,7 +68,7 @@ JSON response:
   "relevance": <0.0-1.0>
 }}"""
     resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=OPENAI_MODEL,
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
         temperature=0,

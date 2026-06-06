@@ -2,19 +2,19 @@
 News Agent — 通过 Brave Search API 搜索新闻报道
 """
 
-import os
 import uuid
 import json
 import httpx
-from openai import OpenAI
 
+from ...settings import build_openai_client, get_env, get_openai_model
 from ..schema import EvidenceItem, EvidenceDirection, SourceType
 from ..evidence_scoring import score_news_confidence
 
-BRAVE_API_KEY  = os.getenv("BRAVE_API_KEY", "")
+BRAVE_API_KEY  = get_env("BRAVE_API_KEY", "")
 BRAVE_BASE_URL = "https://api.search.brave.com/res/v1/news/search"
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "sk-placeholder"))
+openai_client = build_openai_client()
+OPENAI_MODEL = get_openai_model()
 
 
 def _brave_news_search(query: str, count: int = 10) -> list[dict]:
@@ -50,7 +50,7 @@ Respond in JSON:
 }}"""
 
     resp = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=OPENAI_MODEL,
         response_format={"type": "json_object"},
         messages=[{"role": "user", "content": prompt}],
         temperature=0,

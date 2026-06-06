@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import platform
 import sys
+import tomllib
 from importlib.util import find_spec
 from pathlib import Path
 
@@ -14,6 +15,7 @@ from dotenv import dotenv_values, find_dotenv, load_dotenv
 ROOT_DIR = Path(__file__).resolve().parent.parent
 _loaded_env_file: str | None = None
 _loaded_env_values: dict[str, str] = {}
+_loaded_codex_config: dict[str, object] | None = None
 
 
 def _clean_env_value(value: str) -> str:
@@ -60,6 +62,73 @@ def get_env(name: str, default: str = "") -> str:
     return default
 
 
+def _load_codex_config() -> dict[str, object]:
+    global _loaded_codex_config
+    if _loaded_codex_config is not None:
+        return _loaded_codex_config
+
+    config_path = Path.home() / ".codex" / "config.toml"
+    if not config_path.exists():
+        _loaded_codex_config = {}
+        return _loaded_codex_config
+
+    try:
+        _loaded_codex_config = tomllib.loads(config_path.read_text())
+    except Exception:
+        _loaded_codex_config = {}
+    return _loaded_codex_config
+
+
+def _selected_codex_provider() -> dict[str, object]:
+    config = _load_codex_config()
+    provider_name = str(config.get("model_provider", "") or "")
+    providers = config.get("model_providers", {})
+    if not isinstance(providers, dict) or not provider_name:
+        return {}
+    provider = providers.get(provider_name, {})
+    return provider if isinstance(provider, dict) else {}
+
+
+def get_openai_base_url(default: str = "") -> str:
+    env_value = get_env("OPENAI_BASE_URL") or get_env("OPENAI_API_BASE")
+    if env_value:
+        return env_value
+    provider = _selected_codex_provider()
+    base_url = provider.get("base_url", "")
+    return _clean_env_value(str(base_url)) if base_url else default
+
+
+def get_openai_model(default: str = "gpt-4o-mini") -> str:
+    env_value = get_env("OPENAI_MODEL") or get_env("OPENAI_CHAT_MODEL")
+    if env_value:
+        return env_value
+
+    config = _load_codex_config()
+    model = _clean_env_value(str(config.get("model", "") or ""))
+    base_url = get_openai_base_url("")
+
+    # PackyAPI's listed default model may require Responses API, while our
+    # backend currently uses chat completions. Use the verified chat-capable
+    # sibling model unless the user explicitly overrides it via env.
+    if "packyapi.com" in base_url and model == "gpt-5.4":
+        return "gpt-5.4-high"
+
+    return model or default
+
+
+def build_openai_client(timeout: float = 20.0):
+    from openai import OpenAI
+
+    kwargs: dict[str, object] = {
+        "api_key": get_env("OPENAI_API_KEY", ""),
+        "timeout": timeout,
+    }
+    base_url = get_openai_base_url("")
+    if base_url:
+        kwargs["base_url"] = base_url
+    return OpenAI(**kwargs)
+
+
 def _has_env(name: str) -> bool:
     value = get_env(name).strip()
     return bool(value) and "your_" not in value and "placeholder" not in value
@@ -73,11 +142,20 @@ def _check_openai() -> dict[str, object]:
     if not _has_env("OPENAI_API_KEY"):
         return {"ok": False, "detail": "missing"}
     try:
-        from openai import OpenAI
-
-        client = OpenAI(api_key=get_env("OPENAI_API_KEY"), timeout=5.0)
-        client.models.list()
-        return {"ok": True, "detail": "authenticated"}
+        model = get_openai_model()
+        client = build_openai_client(timeout=10.0)
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "Reply with OK"}],
+            max_tokens=10,
+            temperature=0,
+        )
+        if not resp.choices:
+            raise RuntimeError("OpenAI-compatible provider returned no choices")
+        return {
+            "ok": True,
+            "detail": f"authenticated via {get_openai_base_url('official')} model {model}",
+        }
     except Exception as exc:
         return {"ok": False, "detail": _trim_error(exc)}
 
@@ -165,6 +243,10 @@ def build_runtime_status(include_live_checks: bool = False) -> dict[str, object]
         "env_file": env_file,
         "python_version": sys.version.split()[0],
         "platform": platform.platform(),
+        "llm_runtime": {
+            "base_url": get_openai_base_url("official"),
+            "model": get_openai_model(),
+        },
         "credentials": credentials,
         "dependencies": dependencies,
         "provider_checks": provider_checks,
