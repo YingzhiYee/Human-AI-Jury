@@ -8,15 +8,23 @@ import sys
 from importlib.util import find_spec
 from pathlib import Path
 
-from dotenv import find_dotenv, load_dotenv
+import httpx
+from dotenv import dotenv_values, find_dotenv, load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 _loaded_env_file: str | None = None
+_loaded_env_values: dict[str, str] = {}
+
+
+def _clean_env_value(value: str) -> str:
+    """Strip whitespace and accidental wrapping quotes from pasted secrets."""
+    value = value.strip()
+    return value.strip("\"'“”‘’")
 
 
 def ensure_env_loaded() -> str | None:
     """Load a local .env file once so agent modules see real credentials."""
-    global _loaded_env_file
+    global _loaded_env_file, _loaded_env_values
     if _loaded_env_file is not None:
         return _loaded_env_file or None
 
@@ -26,7 +34,14 @@ def ensure_env_loaded() -> str | None:
         env_path = str(candidate) if candidate.exists() else ""
 
     if env_path:
-        load_dotenv(env_path, override=False)
+        _loaded_env_values = {
+            key: _clean_env_value(value)
+            for key, value in dotenv_values(env_path).items()
+            if value is not None
+        }
+        for key, value in _loaded_env_values.items():
+            os.environ[key] = value
+        load_dotenv(env_path, override=True)
         _loaded_env_file = env_path
     else:
         _loaded_env_file = ""
@@ -34,12 +49,93 @@ def ensure_env_loaded() -> str | None:
     return _loaded_env_file or None
 
 
+def get_env(name: str, default: str = "") -> str:
+    """Read a runtime secret after .env normalization."""
+    ensure_env_loaded()
+    value = os.getenv(name)
+    if value is not None:
+        return _clean_env_value(value)
+    if name in _loaded_env_values:
+        return _loaded_env_values[name]
+    return default
+
+
 def _has_env(name: str) -> bool:
-    value = os.getenv(name, "").strip()
+    value = get_env(name).strip()
     return bool(value) and "your_" not in value and "placeholder" not in value
 
 
-def build_runtime_status() -> dict[str, object]:
+def _trim_error(exc: Exception) -> str:
+    return str(exc).strip().replace("\n", " ")[:240]
+
+
+def _check_openai() -> dict[str, object]:
+    if not _has_env("OPENAI_API_KEY"):
+        return {"ok": False, "detail": "missing"}
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=get_env("OPENAI_API_KEY"), timeout=5.0)
+        client.models.list()
+        return {"ok": True, "detail": "authenticated"}
+    except Exception as exc:
+        return {"ok": False, "detail": _trim_error(exc)}
+
+
+def _check_xapi() -> dict[str, object]:
+    if not _has_env("XAPI_TOKEN"):
+        return {"ok": False, "detail": "missing"}
+    try:
+        response = httpx.post(
+            f"https://mcp.xapi.to/mcp?apikey={get_env('XAPI_TOKEN')}",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/event-stream",
+            },
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2025-03-26",
+                    "capabilities": {},
+                    "clientInfo": {
+                        "name": "human-ai-jury-readiness",
+                        "version": "0.1.0",
+                    },
+                },
+            },
+            timeout=5,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get("error"):
+            raise RuntimeError(payload["error"].get("message", "xAPI initialize failed"))
+        return {"ok": True, "detail": "authenticated"}
+    except Exception as exc:
+        return {"ok": False, "detail": _trim_error(exc)}
+
+
+def _check_brave() -> dict[str, object]:
+    if not _has_env("BRAVE_API_KEY"):
+        return {"ok": False, "detail": "missing"}
+    try:
+        response = httpx.get(
+            "https://api.search.brave.com/res/v1/web/search",
+            headers={
+                "Accept": "application/json",
+                "X-Subscription-Token": get_env("BRAVE_API_KEY"),
+            },
+            params={"q": "human ai jury", "count": 1},
+            timeout=5,
+        )
+        response.raise_for_status()
+        return {"ok": True, "detail": "authenticated"}
+    except Exception as exc:
+        return {"ok": False, "detail": _trim_error(exc)}
+
+
+def build_runtime_status(include_live_checks: bool = False) -> dict[str, object]:
     """Return a lightweight readiness snapshot for local debugging."""
     env_file = ensure_env_loaded()
     credentials = {
@@ -53,7 +149,17 @@ def build_runtime_status() -> dict[str, object]:
         "httpx": find_spec("httpx") is not None,
         "python_dotenv": find_spec("dotenv") is not None,
     }
+    provider_checks: dict[str, object] = {}
     live_investigation_ready = all(credentials.values()) and all(dependencies.values())
+    if include_live_checks and live_investigation_ready:
+        provider_checks = {
+            "openai": _check_openai(),
+            "brave": _check_brave(),
+            "xapi": _check_xapi(),
+        }
+        live_investigation_ready = live_investigation_ready and all(
+            bool(check.get("ok")) for check in provider_checks.values()
+        )
 
     return {
         "env_file": env_file,
@@ -61,6 +167,7 @@ def build_runtime_status() -> dict[str, object]:
         "platform": platform.platform(),
         "credentials": credentials,
         "dependencies": dependencies,
+        "provider_checks": provider_checks,
         "live_investigation_ready": live_investigation_ready,
         "missing": {
             "credentials": [name for name, ok in credentials.items() if not ok],

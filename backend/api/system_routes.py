@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/system", tags=["System"])
 
 @router.get("/health")
 def health() -> dict[str, object]:
-    status = build_runtime_status()
+    status = build_runtime_status(include_live_checks=False)
     return {
         "status": "ok",
         "service": "human-ai-jury-api",
@@ -22,7 +22,7 @@ def health() -> dict[str, object]:
 
 @router.get("/readiness")
 def readiness() -> dict[str, object]:
-    status = build_runtime_status()
+    status = build_runtime_status(include_live_checks=True)
     return {
         "status": "ready" if status["live_investigation_ready"] else "degraded",
         "service": "human-ai-jury-api",

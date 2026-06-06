@@ -244,6 +244,8 @@ Executable validation:
 Content:
 
 - load `.env` before investigation agents are imported
+- let `.env` override stale shell-level secrets during local dev
+- strip accidental wrapping quotes from pasted API keys
 - expose the loaded env file path and missing keys through readiness
 
 Executable validation:
@@ -316,7 +318,7 @@ Content:
 
 - provide real `OPENAI_API_KEY`, `BRAVE_API_KEY`, `XAPI_TOKEN`
 - restart backend
-- confirm `/api/system/readiness` shows all credential flags true
+- confirm `/api/system/readiness` shows credential presence and provider auth checks separately
 - rerun `/api/jury/run` and confirm `mode=live`
 
 Executable validation:
@@ -326,6 +328,9 @@ Executable validation:
 
 Pass condition:
 
+- `provider_checks.openai.ok=true`
+- `provider_checks.brave.ok=true`
+- `provider_checks.xapi.ok=true`
 - `live_investigation_ready=true`
 - `/api/jury/run` returns `mode=live`
 
@@ -351,8 +356,9 @@ Completed and verified in this iteration:
 - Step 1 contract cleanup: completed
 - Step 2 env loading wiring: completed
 - Step 3 backend startup: completed with Python 3.12 local venv
-- Step 4 full jury run endpoint: completed in simulated mode
+- Step 4 full jury run endpoint: completed in live mode with claim-dependent social evidence
 - Step 5 frontend honesty check: completed
+- Step 6 provider verification: partially completed
 
 Executable checks already run locally:
 
@@ -369,15 +375,18 @@ Executable checks already run locally:
   - `curl http://127.0.0.1:8000/api/system/readiness`
   - result summary:
     - `openai_api_key=true`
-    - `brave_api_key=false`
-    - `xapi_token=false`
+    - `brave_api_key=true`
+    - `xapi_token=true`
+    - `provider_checks.openai.ok=false`
+    - `provider_checks.brave.ok=true`
+    - `provider_checks.xapi.ok=true`
     - `live_investigation_ready=false`
 - jury run claim A:
   - claim: `Will Brazil win the 2026 FIFA World Cup?`
-  - result summary: `mode=simulated`, `verdict=YES`, `probability_yes=0.833`
+  - result summary: `mode=live`, `social_items=3`, `verdict=NO`, `probability_yes=0.076`
 - jury run claim B:
-  - claim: `Will Nvidia close above $200 by December 31, 2026?`
-  - result summary: `mode=simulated`, `verdict=NO`, `probability_yes=0.324`
+  - claim: `Did Elon Musk post about Mars this week?`
+  - result summary: `mode=live`, `social_items=3`, `verdict=NO`, `probability_yes=0.06`
 - frontend honesty check in browser:
   - backend stopped, clicked `Start Investigation`
   - observed UI error: `Failed to fetch`
@@ -396,13 +405,26 @@ Executable checks already run locally:
   - confirmed old REST endpoint returns `404 Cannot GET /v2/tweets/search/recent`
   - backend xAPI client was updated to call MCP `tools/call`
 - xAPI live provider probe:
+  - verified key balance with CLI:
+    - `{"balance":1,"accountType":"ENTITY","tier":"BASIC"}`
   - verified key is accepted by MCP `initialize`
   - verified action discovery works through `SEARCH` / `GET`
-  - verified real Twitter action call currently fails with:
-    - `Error: [PLATFORM_HTTP_402] Insufficient balance or API Key limit exceeded`
+  - verified real Twitter action calls succeed through MCP `tools/call`
+  - verified `twitter.search`, `twitter.user_by_screen_name`, and `twitter.user_tweets`
+- environment drift fix:
+  - confirmed shell still had an older xAPI key loaded
+  - updated runtime loader so `.env` overrides stale local shell values
+  - updated xAPI client so token is read at instantiation time, not frozen at import time
+- social retrieval quality fix:
+  - replaced one-shot literal claim query with multi-query fallback strategy
+  - added claim-relative freshness filtering for `today` / `yesterday` / `this week`
+  - added heuristic relevance fallback so social evidence still works when OpenAI classification is unavailable
+- OpenAI provider probe:
+  - verified current `OPENAI_API_KEY` fails authentication
+  - exact result: `401 invalid_api_key`
+  - readiness endpoint now reports this as `status=degraded` instead of falsely reporting ready
 
 Still blocked until missing live credentials are provided:
 
-- fully restoring xAPI live retrieval after key balance or per-key limit is fixed
-- verifying end-to-end live evidence with social items included
+- restoring true LLM-based summarization/direction scoring with a valid OpenAI key
 - verifying Sepolia write path with deployed contract and wallet

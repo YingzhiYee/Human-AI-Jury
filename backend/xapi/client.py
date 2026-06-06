@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import json
-import os
 
 import httpx
 
+from backend.settings import get_env
+
 XAPI_MCP_URL = "https://mcp.xapi.to/mcp"
-XAPI_TOKEN = os.getenv("XAPI_TOKEN", "")
 
 
 class XAPIClient:
     """Thin wrapper over xAPI's MCP endpoint for Twitter capability calls."""
 
-    def __init__(self, token: str = XAPI_TOKEN, timeout: int = 20):
-        self.token = token
+    def __init__(self, token: str | None = None, timeout: int = 20):
+        self.token = (token or get_env("XAPI_TOKEN", "")).strip()
         self.timeout = timeout
-        self.base_url = f"{XAPI_MCP_URL}?apikey={token}"
+        self.base_url = f"{XAPI_MCP_URL}?apikey={self.token}"
         self.headers = {
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
@@ -91,6 +91,14 @@ class XAPIClient:
             raise RuntimeError(parsed["error"])
         return parsed
 
+    @staticmethod
+    def _unwrap_data(payload: dict) -> dict:
+        """Normalize xAPI responses that may return either root data or {data: ...}."""
+        data = payload.get("data")
+        if isinstance(data, dict):
+            return data
+        return payload
+
     def search_tweets(
         self,
         query: str,
@@ -112,10 +120,11 @@ class XAPIClient:
                 },
             },
         )
-        tweets = payload.get("data", {}).get("tweets", [])[: max_results]
+        data = self._unwrap_data(payload)
+        tweets = data.get("tweets", [])[: max_results]
         return {
             "data": {
-                **payload.get("data", {}),
+                **data,
                 "tweets": tweets,
             }
         }
@@ -131,7 +140,7 @@ class XAPIClient:
                 },
             },
         )
-        return payload
+        return {"data": self._unwrap_data(payload)}
 
     def get_user_tweets(self, user_id: str, max_results: int = 5) -> dict:
         payload = self._tool_call(
@@ -144,10 +153,11 @@ class XAPIClient:
                 },
             },
         )
-        tweets = payload.get("data", {}).get("tweets", [])[: max_results]
+        data = self._unwrap_data(payload)
+        tweets = data.get("tweets", [])[: max_results]
         return {
             "data": {
-                **payload.get("data", {}),
+                **data,
                 "tweets": tweets,
             }
         }
@@ -163,7 +173,7 @@ class XAPIClient:
                 },
             },
         )
-        return payload
+        return {"data": self._unwrap_data(payload)}
 
     @staticmethod
     def parse_search_results(raw: dict) -> list[dict]:
@@ -200,7 +210,13 @@ class XAPIClient:
         results = []
         for tweet in tweets:
             user = tweet.get("user", {})
-            username = user.get("screen_name", "unknown")
+            user_id = user.get("id_str") or tweet.get("user_id", "")
+            username = user.get("screen_name") or (f"user:{user_id}" if user_id else "unknown")
+            url = (
+                f"https://x.com/{username}/status/{tweet.get('tweet_id', '')}"
+                if user.get("screen_name")
+                else f"https://x.com/i/web/status/{tweet.get('tweet_id', '')}"
+            )
             results.append(
                 {
                     "id": tweet.get("tweet_id", ""),
@@ -210,7 +226,7 @@ class XAPIClient:
                     "author_verified": user.get("verified", False),
                     "like_count": tweet.get("favorite_count", 0),
                     "retweet_count": tweet.get("retweet_count", 0),
-                    "url": f"https://x.com/{username}/status/{tweet.get('tweet_id', '')}",
+                    "url": url,
                 }
             )
         return results
