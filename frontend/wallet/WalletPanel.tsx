@@ -4,9 +4,13 @@ import { BrowserProvider, Contract, keccak256, toUtf8Bytes } from "ethers";
 import { resolutionStorageAbi } from "../lib/contracts";
 import { useSession } from "../lib/session";
 
-const resolutionStorageAddress = import.meta.env.VITE_RESOLUTION_STORAGE_ADDRESS as
-  | string
-  | undefined;
+const SEPOLIA_CHAIN_ID = "0xaa36a7";
+const DEFAULT_RESOLUTION_STORAGE_ADDRESS =
+  "0x76Bcbb0b0E44fdd6626dd709C59d396d03eFF086";
+const resolutionStorageAddress =
+  (import.meta.env.VITE_RESOLUTION_STORAGE_ADDRESS as string | undefined) ??
+  DEFAULT_RESOLUTION_STORAGE_ADDRESS;
+const contractExplorerUrl = `https://sepolia.etherscan.io/address/${resolutionStorageAddress}`;
 
 export function WalletPanel() {
   const { result } = useSession();
@@ -21,6 +25,23 @@ export function WalletPanel() {
     ? keccak256(toUtf8Bytes(result.storage_payload.canonical_json))
     : null;
 
+  async function ensureSepolia() {
+    if (!window.ethereum) {
+      throw new Error("No injected wallet found.");
+    }
+
+    const chainId = (await window.ethereum.request({
+      method: "eth_chainId",
+    })) as string;
+
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: SEPOLIA_CHAIN_ID }],
+      });
+    }
+  }
+
   async function handleConnect() {
     if (!window.ethereum) {
       setStatus("No injected wallet found. Install MetaMask or another EIP-1193 wallet.");
@@ -29,11 +50,12 @@ export function WalletPanel() {
 
     setIsConnecting(true);
     try {
+      await ensureSepolia();
       const accounts = (await window.ethereum.request({
         method: "eth_requestAccounts",
       })) as string[];
       setAddress(accounts[0] ?? null);
-      setStatus("Wallet connected.");
+      setStatus("Wallet connected on Sepolia.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Wallet connection failed.");
     } finally {
@@ -48,7 +70,7 @@ export function WalletPanel() {
   }
 
   async function handleStoreResolution() {
-    if (!result || !resolutionStorageAddress || !metadataHash) {
+    if (!result || !metadataHash) {
       setStatus("Missing result, contract address, or metadata hash.");
       return;
     }
@@ -60,6 +82,7 @@ export function WalletPanel() {
 
     setIsWriting(true);
     try {
+      await ensureSepolia();
       const provider = new BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const contract = new Contract(
@@ -118,8 +141,7 @@ export function WalletPanel() {
 
       <div className="wallet-details">
         <p>
-          Contract:{" "}
-          {resolutionStorageAddress ?? "Set VITE_RESOLUTION_STORAGE_ADDRESS after deployment"}
+          Contract: <a href={contractExplorerUrl} target="_blank" rel="noreferrer">{resolutionStorageAddress}</a>
         </p>
         <p>Resolution hash: {metadataHash ?? "Run a case first"}</p>
       </div>
@@ -128,13 +150,24 @@ export function WalletPanel() {
         type="button"
         className="button-primary"
         onClick={handleStoreResolution}
-        disabled={!isConnected || !result || !resolutionStorageAddress || isWriting}
+        disabled={!isConnected || !result || isWriting}
       >
         {isWriting ? "Submitting to Sepolia..." : "Store Resolution"}
       </button>
 
       <p>{status}</p>
-      {txHash ? <p>Transaction hash: {txHash}</p> : null}
+      {txHash ? (
+        <p>
+          Transaction hash:{" "}
+          <a
+            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {txHash}
+          </a>
+        </p>
+      ) : null}
     </article>
   );
 }
