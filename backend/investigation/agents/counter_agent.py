@@ -54,9 +54,14 @@ def _llm_analyze(claim: str, title: str, snippet: str) -> tuple[str, str, float]
     prompt = f"""Claim: "{claim}"
 Article: "{title}. {snippet}"
 
+Classify the article RELATIVE TO THE ORIGINAL CLAIM.
+- Use "supports_yes" if it supports the claim being true.
+- Use "supports_no" if it contradicts the claim or supports the opposite outcome.
+- Use "neutral" if the article is mixed, speculative, or unclear.
+
 JSON:
 {{
-  "summary": "<≤80 chars explaining how this contradicts or disputes the claim>",
+  "summary": "<=80 chars summarizing how this evidence relates to the claim>",
   "direction": "supports_yes" | "supports_no" | "neutral",
   "relevance": <0.0-1.0>
 }}"""
@@ -100,7 +105,7 @@ def run(claim: str, max_items: int = 5) -> list[EvidenceItem]:
         try:
             summary, direction_str, relevance = _llm_analyze(claim, title, snippet)
         except Exception:
-            summary, direction_str, relevance = snippet[:80], "supports_no", 0.5
+            summary, direction_str, relevance = snippet[:80], "neutral", 0.5
 
         items.append(EvidenceItem(
             id=f"counter_{i}_{uuid.uuid4().hex[:6]}",

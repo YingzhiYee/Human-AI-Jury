@@ -258,6 +258,7 @@ def test_news_agent():
 
 def test_counter_agent():
     from backend.investigation.agents import counter_agent
+    from backend.investigation.schema import EvidenceDirection
 
     mock_brave_results = [
         {"title": f"Counter {i}", "url": f"https://politico.com/article/{i}",
@@ -275,10 +276,35 @@ def test_counter_agent():
     assert len(items) == 3
     assert all(i.source_type.value == "counter" for i in items)
     assert all(i.agent == "CounterAgent" for i in items)
+    assert all(i.direction == EvidenceDirection.SUPPORTS_YES for i in items)
+
+def test_counter_agent_llm_failure_falls_back_to_neutral():
+    from backend.investigation.agents import counter_agent
+    from backend.investigation.schema import EvidenceDirection
+
+    mock_brave_results = [
+        {
+            "title": "Counter fallback",
+            "url": "https://example.com/counter",
+            "description": "Mixed or unclear signal",
+        }
+    ]
+
+    with patch("backend.investigation.agents.counter_agent._generate_counter_query",
+               return_value="counter example"), \
+         patch("backend.investigation.agents.counter_agent._brave_search",
+               return_value=mock_brave_results), \
+         patch("backend.investigation.agents.counter_agent._llm_analyze",
+               side_effect=RuntimeError("llm unavailable")):
+        items = counter_agent.run("Test claim", max_items=1)
+
+    assert len(items) == 1
+    assert items[0].direction == EvidenceDirection.NEUTRAL
 
 check("SocialAgent 返回正确 EvidenceItem（mock xAPI）", test_social_agent)
 check("NewsAgent 返回正确 EvidenceItem（mock Brave）", test_news_agent)
 check("CounterAgent 返回正确 EvidenceItem（mock Brave）", test_counter_agent)
+check("CounterAgent 在 LLM 失败时回退到 neutral", test_counter_agent_llm_failure_falls_back_to_neutral)
 
 
 # ─────────────────────────────────────────────
@@ -348,6 +374,70 @@ def test_mock_data():
         assert item.weight > 0
 
 check("get_mock_pool() 数据完整，yes/no 双方向均有证据", test_mock_data)
+
+
+# ─────────────────────────────────────────────
+# 7. Deliberation 结果合理性
+# ─────────────────────────────────────────────
+print("\n【7】Deliberation 结果合理性")
+
+def test_judge_confidence_varies_with_signal_strength():
+    from backend.agents.judge_agent import JudgeAgent
+    from backend.models import AggregationReport, BayesianSnapshot, Stance
+
+    judge = JudgeAgent()
+
+    mixed_snapshot = BayesianSnapshot(
+        prior_yes=0.5,
+        posterior_yes=0.48,
+        evidence_yes_strength=0.8,
+        evidence_no_strength=0.7,
+        human_yes_strength=0.0,
+        human_no_strength=0.0,
+        challenge_pressure=0.0,
+        disagreement=0.85,
+        confidence_interval=0.22,
+    )
+    mixed_report = AggregationReport(
+        prosecutor_score=0.49,
+        defense_score=0.51,
+        leading_stance=Stance.NEUTRAL,
+        conflict_level=0.9,
+        decisive_evidence_ids=[],
+        notes=[],
+    )
+
+    decisive_snapshot = BayesianSnapshot(
+        prior_yes=0.5,
+        posterior_yes=0.08,
+        evidence_yes_strength=0.2,
+        evidence_no_strength=2.1,
+        human_yes_strength=0.0,
+        human_no_strength=0.0,
+        challenge_pressure=0.0,
+        disagreement=0.05,
+        confidence_interval=0.12,
+    )
+    decisive_report = AggregationReport(
+        prosecutor_score=0.18,
+        defense_score=0.92,
+        leading_stance=Stance.NO,
+        conflict_level=0.05,
+        decisive_evidence_ids=["a", "b"],
+        notes=[],
+    )
+
+    mixed_confidence = judge._compute_final_confidence(mixed_snapshot, mixed_report)
+    decisive_confidence = judge._compute_final_confidence(
+        decisive_snapshot,
+        decisive_report,
+    )
+
+    assert decisive_confidence > mixed_confidence
+    assert mixed_confidence < 0.6
+    assert decisive_confidence > 0.7
+
+check("JudgeAgent 的 final confidence 会随证据强弱变化", test_judge_confidence_varies_with_signal_strength)
 
 
 # ─────────────────────────────────────────────

@@ -65,11 +65,17 @@ class JudgeAgent:
         bayesian_snapshot: BayesianSnapshot,
         aggregation_report: AggregationReport,
     ) -> float:
+        probability_certainty = abs(bayesian_snapshot.posterior_yes - 0.5) * 2
+        score_gap = abs(
+            aggregation_report.prosecutor_score - aggregation_report.defense_score
+        )
         confidence = (
-            1
-            - bayesian_snapshot.confidence_interval
-            - (aggregation_report.conflict_level * 0.20)
-            - (bayesian_snapshot.challenge_pressure * 0.10)
+            0.30
+            + (probability_certainty * 0.25)
+            + (score_gap * 0.20)
+            + ((1 - bayesian_snapshot.confidence_interval) * 0.15)
+            - (aggregation_report.conflict_level * 0.18)
+            - (bayesian_snapshot.challenge_pressure * 0.12)
         )
         return round(clamp(confidence, 0.05, 0.95), 3)
 
