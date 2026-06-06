@@ -160,3 +160,57 @@ bash scripts/scan_secrets.sh
 ```
 
 This scan is intentionally lightweight. It is meant to catch obvious pasted keys before they enter git history.
+
+## Public API Deployment
+
+This repo includes a production-minded Render blueprint in [render.yaml](/Users/yyz/code/Human-AI-Jury/render.yaml) so the backend can be deployed directly from GitHub and exposed as a public API.
+
+### What Gets Deployed
+
+- Public FastAPI service: `human-ai-jury-api`
+- Public endpoints:
+  - `/api/jury/run`
+  - `/api/system/readiness`
+  - `/api/system/health`
+  - `/docs`
+
+### Deploy On Render
+
+1. Push this repository to GitHub.
+2. In Render, choose `New > Blueprint`.
+3. Connect the GitHub repo and select `render.yaml`.
+4. Fill in the required secrets in the Render dashboard:
+   - `OPENAI_API_KEY`
+   - `OPENAI_BASE_URL` if you use an OpenAI-compatible gateway such as PackyAPI
+   - `OPENAI_MODEL` if your provider needs a specific model such as `gpt-5.4-high`
+   - `BRAVE_API_KEY`
+   - `XAPI_TOKEN`
+5. Wait for the initial deploy to finish.
+
+### After Deploy
+
+If your Render URL is `https://human-ai-jury-api.onrender.com`, the public story becomes:
+
+- Health check:
+  - `https://human-ai-jury-api.onrender.com/api/system/health`
+- Readiness and dependency transparency:
+  - `https://human-ai-jury-api.onrender.com/api/system/readiness`
+- Interactive API docs:
+  - `https://human-ai-jury-api.onrender.com/docs`
+- Main verdict API:
+  - `https://human-ai-jury-api.onrender.com/api/jury/run`
+
+Example request:
+
+```bash
+curl -s https://human-ai-jury-api.onrender.com/api/jury/run \
+  -H 'Content-Type: application/json' \
+  -d '{"market_id":"pm_demo","claim":"Will Brazil win the 2026 FIFA World Cup?","context":"sports prediction dispute","prior_yes":0.5,"max_items_per_agent":2,"human_votes":[],"challenges":[]}'
+```
+
+### Why This Helps The Demo
+
+- GitHub shows the code and architecture.
+- Render gives you a real public API URL.
+- FastAPI `/docs` makes the system demoable for judges and external developers without extra frontend setup.
+- `/api/system/readiness` shows provider status, which strengthens the transparency story.

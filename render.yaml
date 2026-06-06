@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: human-ai-jury-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/system/health
+    buildFilter:
+      paths:
+        - backend/**
+        - requirements.txt
+        - render.yaml
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      - key: BRAVE_API_KEY
+        sync: false
+      - key: XAPI_TOKEN
+        sync: false
