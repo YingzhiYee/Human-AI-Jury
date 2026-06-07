@@ -7,9 +7,9 @@ import type { DemoRunRequest } from "../lib/types";
 import { EvidenceBoard } from "../evidence-page/EvidenceBoard";
 
 const blankDraft: DemoRunRequest = {
-  market_id: "pm_demo_001",
-  claim: "",
-  context: "",
+  market_id: "pm_demo_btc_001",
+  claim: "Will Bitcoin trade above $150,000 before December 31, 2026?",
+  context: "Crypto price prediction dispute",
   prior_yes: 0.5,
   max_items_per_agent: 4,
   human_votes: [],

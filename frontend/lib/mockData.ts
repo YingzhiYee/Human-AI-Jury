@@ -8,10 +8,9 @@ import type {
 } from "./types";
 
 export const defaultDemoCase: DemoRunRequest = {
-  market_id: "pm_demo_001",
-  claim: "Did Trump pardon Hunter Biden before January 20?",
-  context:
-    "Resolve YES only if credible official or documentary evidence of a pardon exists before Jan 20.",
+  market_id: "pm_demo_btc_001",
+  claim: "Will Bitcoin trade above $150,000 before December 31, 2026?",
+  context: "Crypto price prediction dispute",
   prior_yes: 0.5,
   max_items_per_agent: 4,
   human_votes: [],

@@ -31,9 +31,9 @@ class ChallengeInput(BaseModel):
 
 
 class DemoRunRequest(BaseModel):
-    market_id: str = "pm_demo_001"
-    claim: str = "Did Trump pardon Hunter Biden before January 20?"
-    context: str = "Prediction market dispute demo"
+    market_id: str = "pm_demo_btc_001"
+    claim: str = "Will Bitcoin trade above $150,000 before December 31, 2026?"
+    context: str = "Crypto price prediction dispute"
     prior_yes: float = Field(default=0.5, ge=0.01, le=0.99)
     max_items_per_agent: int = Field(default=4, ge=1, le=20)
     human_votes: list[HumanVoteInput] = Field(default_factory=list)
