@@ -11,6 +11,40 @@ const resolutionStorageAddress =
   (import.meta.env.VITE_RESOLUTION_STORAGE_ADDRESS as string | undefined) ??
   DEFAULT_RESOLUTION_STORAGE_ADDRESS;
 const contractExplorerUrl = `https://sepolia.etherscan.io/address/${resolutionStorageAddress}`;
+const SEPOLIA_PARAMS = {
+  chainId: SEPOLIA_CHAIN_ID,
+  chainName: "Sepolia",
+  nativeCurrency: {
+    name: "Sepolia ETH",
+    symbol: "ETH",
+    decimals: 18,
+  },
+  rpcUrls: ["https://rpc.sepolia.org"],
+  blockExplorerUrls: ["https://sepolia.etherscan.io"],
+};
+
+function getInjectedProvider(): EthereumProvider | null {
+  const candidates = window.ethereum?.providers?.length
+    ? window.ethereum.providers
+    : window.ethereum
+      ? [window.ethereum]
+      : [];
+
+  return (
+    candidates.find((provider) => provider.isMetaMask) ??
+    candidates.find((provider) => provider.isRabby) ??
+    candidates.find((provider) => provider.isCoinbaseWallet) ??
+    candidates.find((provider) => typeof provider.request === "function") ??
+    null
+  );
+}
+
+function getErrorMessage(error: unknown) {
+  if (typeof error === "object" && error && "message" in error) {
+    return String(error.message);
+  }
+  return "Wallet request failed.";
+}
 
 export function WalletPanel() {
   const { result } = useSession();
@@ -25,39 +59,58 @@ export function WalletPanel() {
     ? keccak256(toUtf8Bytes(result.storage_payload.canonical_json))
     : null;
 
-  async function ensureSepolia() {
-    if (!window.ethereum) {
+  async function ensureSepolia(provider: EthereumProvider) {
+    if (!provider) {
       throw new Error("No injected wallet found.");
     }
 
-    const chainId = (await window.ethereum.request({
+    const chainId = (await provider.request({
       method: "eth_chainId",
     })) as string;
 
     if (chainId !== SEPOLIA_CHAIN_ID) {
-      await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: SEPOLIA_CHAIN_ID }],
-      });
+      try {
+        await provider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: SEPOLIA_CHAIN_ID }],
+        });
+      } catch (error) {
+        const message = getErrorMessage(error);
+        const shouldAddSepolia =
+          message.includes("4902") ||
+          message.toLowerCase().includes("unknown chain") ||
+          message.toLowerCase().includes("unrecognized chain") ||
+          message.toLowerCase().includes("not been added");
+
+        if (!shouldAddSepolia) {
+          throw error;
+        }
+
+        await provider.request({
+          method: "wallet_addEthereumChain",
+          params: [SEPOLIA_PARAMS],
+        });
+      }
     }
   }
 
   async function handleConnect() {
-    if (!window.ethereum) {
+    const injectedProvider = getInjectedProvider();
+    if (!injectedProvider) {
       setStatus("No injected wallet found. Install MetaMask or another EIP-1193 wallet.");
       return;
     }
 
     setIsConnecting(true);
     try {
-      await ensureSepolia();
-      const accounts = (await window.ethereum.request({
+      await ensureSepolia(injectedProvider);
+      const accounts = (await injectedProvider.request({
         method: "eth_requestAccounts",
       })) as string[];
       setAddress(accounts[0] ?? null);
       setStatus("Wallet connected on Sepolia.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Wallet connection failed.");
+      setStatus(getErrorMessage(error));
     } finally {
       setIsConnecting(false);
     }
@@ -75,15 +128,16 @@ export function WalletPanel() {
       return;
     }
 
-    if (!window.ethereum) {
+    const injectedProvider = getInjectedProvider();
+    if (!injectedProvider) {
       setStatus("No injected wallet found for contract write.");
       return;
     }
 
     setIsWriting(true);
     try {
-      await ensureSepolia();
-      const provider = new BrowserProvider(window.ethereum);
+      await ensureSepolia(injectedProvider);
+      const provider = new BrowserProvider(injectedProvider);
       const signer = await provider.getSigner();
       const contract = new Contract(
         resolutionStorageAddress,
@@ -102,7 +156,7 @@ export function WalletPanel() {
       await tx.wait();
       setStatus("Stored successfully on-chain.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Failed to store resolution.");
+      setStatus(getErrorMessage(error));
     } finally {
       setIsWriting(false);
     }

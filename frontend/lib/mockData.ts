@@ -8,8 +8,8 @@ import type {
 } from "./types";
 
 export const defaultDemoCase: DemoRunRequest = {
-  market_id: "pm_demo_btc_001",
-  claim: "Will Bitcoin trade above $150,000 before December 31, 2026?",
+  market_id: "pm_demo_eth_001",
+  claim: "Will Ethereum trade above $5000 before December 31, 2026?",
   context: "Crypto price prediction dispute",
   prior_yes: 0.5,
   max_items_per_agent: 4,
