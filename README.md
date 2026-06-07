@@ -73,6 +73,10 @@ Example:
 Did Trump pardon Hunter Biden before January 20?
 Human-AI Jury collects evidence, facilitates debate, and generates an explainable verdict.
 
+Demo ops:
+- [Demo Script](/Users/yyz/code/Human-AI-Jury/docs/demo_script.md)
+- [Demo And Acceptance Pack](/Users/yyz/code/Human-AI-Jury/docs/demo_acceptance_pack.md)
+
 ## Vision
 Human-AI Jury aims to become the dispute resolution layer for prediction markets, DAOs, and online communities.
 
